@@ -809,6 +809,21 @@
     .analytics-filters select { flex:1; }
   }
 
+
+  .testing-warning-backdrop { position:fixed; inset:0; display:none; place-items:center; padding:20px; background:rgba(28,27,29,.46); backdrop-filter:blur(8px); z-index:90; }
+  .testing-warning-backdrop.open { display:grid; }
+  .testing-warning-dialog { width:min(485px,100%); position:relative; padding:28px; border-radius:24px; background:rgba(255,255,255,.96); border:1px solid rgba(255,255,255,.86); box-shadow:0 30px 90px rgba(28,27,29,.30); }
+  .testing-warning-close { position:absolute; top:14px; right:14px; width:38px; height:38px; border-radius:50%; border:1px solid var(--grey-20); background:var(--grey-10); color:var(--grey-80); font-size:22px; cursor:pointer; }
+  .testing-warning-icon { width:52px; height:52px; display:grid; place-items:center; border-radius:14px; background:var(--warning-bg); border:1px solid #FEDF89; font-size:25px; margin-bottom:14px; }
+  .testing-warning-eyebrow { color:var(--warning); font-size:11px; font-weight:900; letter-spacing:.12em; margin-bottom:10px; }
+  .testing-warning-dialog h2 { margin:0; font-size:26px; letter-spacing:-.025em; }
+  .testing-warning-dialog p { margin:10px 0 0; color:var(--grey-70); line-height:1.55; font-size:15px; }
+  .testing-warning-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:24px; }
+  .testing-warning-actions .btn { padding:13px 15px; }
+  body.dark .testing-warning-dialog { background:rgba(33,28,43,.98); border-color:var(--dark-border); color:#fff; }
+  body.dark .testing-warning-close { background:var(--dark-surface-2); border-color:var(--dark-border); color:#fff; }
+  @media(max-width:520px){ .testing-warning-actions{grid-template-columns:1fr;} }
+
   .hidden { display:none !important; }
 
 
@@ -1220,6 +1235,20 @@
   </div>
 </div>
 
+<div class="testing-warning-backdrop" id="testing-warning-modal" onclick="if(event.target===this) closeTestingWarning()">
+  <div class="testing-warning-dialog" role="dialog" aria-modal="true">
+    <button class="testing-warning-close" type="button" onclick="closeTestingWarning()">×</button>
+    <div class="testing-warning-icon">⚠️</div>
+    <div class="testing-warning-eyebrow" id="testing-warning-eyebrow">TESTING IN PROGRESS</div>
+    <h2 id="testing-warning-title">Leave testing?</h2>
+    <p id="testing-warning-copy">You have testing in progress. Leaving this page will lose your current testing results.</p>
+    <div class="testing-warning-actions">
+      <button class="btn btn-secondary" id="testing-warning-cancel" type="button" onclick="closeTestingWarning()">Stay on Testing</button>
+      <button class="btn btn-primary" id="testing-warning-confirm" type="button" onclick="confirmTestingWarning()">Leave Testing</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="issue-modal" onclick="if(event.target===this) closeIssueModal()">
   <div class="modal">
     <div class="modal-icon-error">!</div>
@@ -1355,19 +1384,39 @@ let pendingProtectedPage = null;
 const protectedPages = new Set(['testing','results','issues','test-cases']);
 
 function hasNamedTestingDevice() {
-  return testingDevices.some((device, index) => {
-    const value = String(device?.id || '').trim();
-    const defaultName = `Device ${String(index + 1).padStart(2,'0')}`;
-    return value && value !== defaultName;
-  });
+  return testingDevices.some(device => String(device?.id || '').trim().length > 0);
 }
 
 function isTestingPageActive() {
   return !document.getElementById('page-testing')?.classList.contains('hidden');
 }
 
-function confirmLeaveTesting() {
-  return window.confirm('Leave testing?\n\nYou have entered one or more device names. Leaving this page will clear the current devices and test results.\n\nSelect OK to leave and reset the test, or Cancel to keep testing.');
+let testingWarningAction = null;
+
+function openTestingWarning(mode, action) {
+  const modal = document.getElementById('testing-warning-modal');
+  if (!modal) return;
+  const isReset = mode === 'reset';
+  document.getElementById('testing-warning-eyebrow').textContent = isReset ? 'TESTING IN PROGRESS' : 'TESTING IN PROGRESS';
+  document.getElementById('testing-warning-title').textContent = isReset ? 'Reset testing?' : 'Leave testing?';
+  document.getElementById('testing-warning-copy').textContent = isReset
+    ? 'This will clear all device names and test results from the current testing session. This cannot be undone.'
+    : 'You have testing in progress. Leaving this page will lose your current testing results.';
+  document.getElementById('testing-warning-confirm').textContent = isReset ? 'Reset Testing' : 'Leave Testing';
+  document.getElementById('testing-warning-cancel').textContent = isReset ? 'Keep Testing' : 'Stay on Testing';
+  testingWarningAction = action;
+  modal.classList.add('open');
+}
+
+function closeTestingWarning() {
+  document.getElementById('testing-warning-modal')?.classList.remove('open');
+  testingWarningAction = null;
+}
+
+function confirmTestingWarning() {
+  const action = testingWarningAction;
+  closeTestingWarning();
+  if (typeof action === 'function') action();
 }
 
 function clearTestingRunOnLeave() {
@@ -1377,19 +1426,19 @@ function clearTestingRunOnLeave() {
 }
 
 function requestTestingReset() {
-  if (hasNamedTestingDevice()) {
-    const ok = window.confirm('Reset testing?\n\nThis will clear all device names and test results from the current testing session. This cannot be undone.');
-    if (!ok) return;
-  }
-  resetTestingRun();
-  const ref = document.getElementById('testing-reference');
-  if (ref) ref.value = '';
+  const doReset = () => {
+    resetTestingRun();
+    const ref = document.getElementById('testing-reference');
+    if (ref) ref.value = '';
+  };
+  if (hasNamedTestingDevice()) return openTestingWarning('reset', doReset);
+  doReset();
 }
 
-function showPage(page) {
-  if (page !== 'testing' && isTestingPageActive() && hasNamedTestingDevice()) {
-    if (!confirmLeaveTesting()) return;
-    clearTestingRunOnLeave();
+function showPage(page, bypassTestingWarning=false) {
+  if (!bypassTestingWarning && page !== 'testing' && isTestingPageActive() && hasNamedTestingDevice()) {
+    openTestingWarning('leave', () => { clearTestingRunOnLeave(); showPage(page, true); });
+    return;
   } else if (page !== 'testing' && isTestingPageActive()) {
     clearTestingRunOnLeave();
   }
@@ -2160,7 +2209,7 @@ function escapeHtml(value) {
 
 
 let quickTestOn = false;
-let testingDevices = [{id:'Device 01', results:{}}];
+let testingDevices = [{id:'', results:{}}];
 let selectedTestingSystem = 'tagger';
 
 function toggleQuickTest() {
@@ -2280,7 +2329,7 @@ function syncIssueFailedTest() {
 
 function addDeviceRow() {
   const number = testingDevices.length + 1;
-  testingDevices.push({id:`Device ${String(number).padStart(2,'0')}`, results:{}});
+  testingDevices.push({id:'', results:{}});
   renderTesting();
 }
 
@@ -2291,7 +2340,7 @@ function removeDeviceRow(index) {
 }
 
 function updateDeviceId(index, value) {
-  testingDevices[index].id = value.trim() || `Device ${String(index+1).padStart(2,'0')}`;
+  testingDevices[index].id = value.trim();
   updateTestingSessionContext();
 }
 
@@ -2308,7 +2357,7 @@ function resetDevice(index) {
 
 function resetTestingRun(changeSystem=true) {
   if (changeSystem && document.getElementById('system-select')) selectedTestingSystem = document.getElementById('system-select').value || selectedTestingSystem;
-  testingDevices = [{id:'Device 01', results:{}}];
+  testingDevices = [{id:'', results:{}}];
   testResults = {};
   currentTestingSession = null;
   const summary = document.getElementById('result-summary');
@@ -2365,7 +2414,7 @@ function renderTestingMatrix() {
       </div></td>`;
     }).join('');
     return `<tr><td>
-      <input class="device-input" value="${escapeHtml(device.id)}" onchange="updateDeviceId(${index}, this.value)" onkeydown="if(event.key==='Enter' && quickTestOn){event.preventDefault();addDeviceRow();document.querySelectorAll('.device-input')[${index+1}]?.focus();}">
+      <input class="device-input" value="${escapeHtml(device.id)}" placeholder="e.g. SYDT3ABD001" onchange="updateDeviceId(${index}, this.value)" onkeydown="if(event.key==='Enter' && quickTestOn){event.preventDefault();addDeviceRow();document.querySelectorAll('.device-input')[${index+1}]?.focus();}">
       <div class="device-tools"><button class="mini-btn" onclick="passAllDevice(${index})">✓ Pass All</button><button class="mini-btn" onclick="resetDevice(${index})">↻ Reset</button>${testingDevices.length>1?`<button class="mini-btn" onclick="removeDeviceRow(${index})">Remove</button>`:''}</div>
       ${(() => { const failed = active.filter(t => device.results[t.id] === 'fail'); return failed.length ? `<div class="device-failure"><span>⚠ ${failed.length} test${failed.length===1?'':'s'} failed</span><button class="raise-issue-btn" onclick="openIssueForDevice(${index})">Raise Issue →</button></div>` : ''; })()}
     </td>${cells}</tr>`;
@@ -2683,18 +2732,26 @@ async function submitAuth(event) {
   showAuthMessage('Account created. Your access is now pending administrator approval.', 'success');
 }
 
+async function performSignOut() {
+  await authClient?.auth.signOut();
+  currentSession = null; currentUser = null; currentUserRole = null;
+  pendingProtectedPage = null;
+  updateAuthUI(); showPage('home', true);
+}
+
 function updateAuthUI() {
   const button = document.querySelector('.signin-nav-btn');
   if (!button) return;
   if (currentSession?.user) {
     button.textContent = 'Sign out';
     button.onclick = async () => {
-      if (isTestingPageActive() && hasNamedTestingDevice() && !confirmLeaveTesting()) return;
+      if (isTestingPageActive() && hasNamedTestingDevice()) {
+        openTestingWarning('leave', async () => { clearTestingRunOnLeave(); await performSignOut(); });
+        return;
+      }
       if (isTestingPageActive()) clearTestingRunOnLeave();
-      await authClient?.auth.signOut();
-      currentSession = null; currentUser = null; currentUserRole = null;
-      pendingProtectedPage = null;
-      updateAuthUI(); showPage('home');
+      await performSignOut();
+      return;
     };
   } else {
     button.textContent = 'Sign in';
