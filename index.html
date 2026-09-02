@@ -1146,7 +1146,7 @@
               <h2>Test case order</h2>
               <p>Drag the handle to change the testing sequence.</p>
             </div>
-            <button class="btn btn-secondary btn-small" onclick="resetDemoOrder()">Reset demo order</button>
+            
           </div>
           <div id="admin-list"></div>
         </div>
@@ -1276,22 +1276,7 @@ const systems = [
   { id: 'abd', name: 'Voyager Auto Bag Drop', desc: 'Auto Bag Drop device testing', icon: '🧳' }
 ];
 
-let tests = [
-  {id:1, systems:['vcheck','tagger'], name:'Scan boarding pass', desc:'Scan a valid boarding pass and confirm the device reads it.', active:true},
-  {id:2, systems:['vcheck'], name:'Touchscreen response', desc:'Confirm the touchscreen responds accurately across the display.', active:true},
-  {id:3, systems:['vcheck'], name:'Document printer', desc:'Print a test document and confirm the output is legible.', active:true},
-
-  {id:4, systems:['vbag','abd'], name:'Bag acceptance', desc:'Present a test bag and confirm the device accepts it correctly.', active:true},
-  {id:5, systems:['vbag'], name:'Barcode scan', desc:'Scan a valid bag tag and confirm it is recognised.', active:true},
-
-  {id:6, systems:['tagger'], name:'Print bag tag', desc:'Print a test bag tag and confirm the label is aligned and legible.', active:true},
-  {id:7, systems:['tagger'], name:'Printer status', desc:'Confirm the bag tag printer reports ready with no faults.', active:true},
-  {id:8, systems:['tagger'], name:'Scanner test', desc:'Scan a valid boarding pass and confirm the scanner responds.', active:true},
-
-  {id:9, systems:['abd'], name:'Passenger identification', desc:'Confirm passenger identification workflow starts correctly.', active:true},
-  {id:10, systems:['abd'], name:'Bag acceptance', desc:'Present a test bag and confirm the system accepts it.', active:true},
-  {id:11, systems:['abd'], name:'Reject path', desc:'Confirm an invalid bag follows the correct reject path.', active:false}
-];
+let tests = [];
 
 const demoOrder = tests.map(t => t.id);
 let testResults = {};
@@ -1302,27 +1287,11 @@ let currentSession = null;
 let currentUser = null;
 let currentUserRole = null;
 
-let issues = [
-  {id:'I-2031', creatorId:'u1', creatorName:'Alex Tester', system:'tagger', airport:'BNE', device:'VT-04', testName:'Printer status', priority:'high', status:'open', created:'02 Sep 2026, 09:51', description:'Bag tag printer reporting an unexpected fault during device testing.'},
-  {id:'I-2030', creatorId:'u2', creatorName:'Jordan Smith', system:'abd', airport:'SYD', device:'ABD-12', testName:'Bag acceptance', priority:'critical', status:'in-progress', created:'01 Sep 2026, 15:22', description:'Device did not accept the test bag during the standard acceptance step.'}
-];
+let issues = [];
 
 let issuesEditingId = null;
 
-let sessions = [
-  {
-    id:'S-1048', creatorId:'u1', creatorName:'Alex Tester', system:'tagger', airport:'BNE', device:'VT-04', started:'02 Sep 2026, 09:42', status:'passed',
-    results:[['Print bag tag','pass'],['Printer status','pass'],['Scanner test','pass']]
-  },
-  {
-    id:'S-1047', creatorId:'u2', creatorName:'Jordan Smith', system:'abd', airport:'SYD', device:'ABD-12', started:'01 Sep 2026, 15:18', status:'failed',
-    results:[['Passenger identification','pass'],['Bag acceptance','fail'],['Reject path','pass']]
-  },
-  {
-    id:'S-1046', creatorId:'u3', creatorName:'Taylor Lee', system:'vcheck', airport:'MEL', device:'VC-03', started:'01 Sep 2026, 10:04', status:'passed',
-    results:[['Scan boarding pass','pass'],['Touchscreen response','pass'],['Document printer','pass']]
-  }
-];
+let sessions = [];
 
 function systemById(id) { return systems.find(s => s.id === id); }
 
@@ -1882,10 +1851,10 @@ function renderTestCases() {
       <div><span class="pill ${t.active ? 'pass' : 'pending'}">${t.active ? 'Active' : 'Inactive'}</span></div>
       <div>${t.active ? '<span style="font-size:12px;color:var(--success);font-weight:800;">Visible</span>' : '<span style="font-size:12px;color:var(--grey-70);font-weight:800;">Hidden</span>'}</div>
       <div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;">
-        <button class="status-toggle ${t.active ? 'active' : 'inactive'}" onclick="event.stopPropagation();toggleActive(${t.id})">${t.active ? 'Deactivate' : 'Activate'}</button>
-        <button class="btn btn-secondary btn-small" onclick="event.stopPropagation();editTest(${t.id})">${inlineEditingId === t.id ? 'Close edit' : 'Edit'}</button>
-        <button class="btn btn-secondary btn-small clone-btn" onclick="event.stopPropagation();cloneTest(${t.id})">Clone</button>
-        ${currentUserRole==='admin' ? `<button class="btn btn-danger btn-small" onclick="event.stopPropagation();deleteTest(${t.id})">Delete</button>` : ''}
+        <button class="status-toggle ${t.active ? 'active' : 'inactive'}" onclick="event.stopPropagation();toggleActive('${t.id}')">${t.active ? 'Deactivate' : 'Activate'}</button>
+        <button class="btn btn-secondary btn-small" onclick="event.stopPropagation();editTest('${t.id}')">${inlineEditingId === t.id ? 'Close edit' : 'Edit'}</button>
+        <button class="btn btn-secondary btn-small clone-btn" onclick="event.stopPropagation();cloneTest('${t.id}')">Clone</button>
+        ${currentUserRole==='admin' ? `<button class="btn btn-danger btn-small" onclick="event.stopPropagation();deleteTest('${t.id}')">Delete</button>` : ''}
       </div>
       ${inlineEditingId === t.id ? inlineEditorMarkup(t) : ''}
     </div>
@@ -1931,7 +1900,7 @@ function inlineEditorMarkup(t) {
       </div>
       <div class="inline-editor-actions">
         <button class="btn btn-secondary btn-small" type="button" onclick="cancelInlineEdit()">Cancel</button>
-        <button class="btn btn-small editor-save" type="button" onclick="saveInlineEdit(${t.id})">Save changes</button>
+        <button class="btn btn-small editor-save" type="button" onclick="saveInlineEdit('${t.id}')">Save changes</button>
       </div>
     </div>
   `;
@@ -2352,8 +2321,8 @@ function renderTestingMatrix() {
     const cells = active.map(t => {
       const r = getDeviceResult(index, t.id);
       return `<td><div class="check-wrap">
-        <button class="test-choice pass ${r==='pass'?'selected':''}" title="Pass" onclick="setDeviceResult(${index},${t.id},'pass')">✓</button>
-        <button class="test-choice fail ${r==='fail'?'selected':''}" title="Fail" onclick="setDeviceResult(${index},${t.id},'fail')">✕</button>
+        <button class="test-choice pass ${r==='pass'?'selected':''}" title="Pass" onclick="setDeviceResult(${index},'${t.id}','pass')">✓</button>
+        <button class="test-choice fail ${r==='fail'?'selected':''}" title="Fail" onclick="setDeviceResult(${index},'${t.id}','fail')">✕</button>
       </div></td>`;
     }).join('');
     return `<tr><td>
@@ -2651,6 +2620,7 @@ async function submitAuth(event) {
     renderResults('mine');
     renderIssues('mine');
     renderAdmin();
+    await refreshAotData();
     if (pendingProtectedPage) {
       const target = pendingProtectedPage;
       pendingProtectedPage = null;
@@ -2719,6 +2689,7 @@ async function initAuth() {
     }
   }
   updateAuthUI();
+  await afterAotAuthReady();
   authClient.auth.onAuthStateChange(async (_event, session) => {
     if (!session?.user) {
       currentSession = null; currentUser = null; currentUserRole = null;
@@ -2737,6 +2708,7 @@ async function initAuth() {
     currentUserRole = access.role;
     currentUser.name = formatUserName(currentUser.email);
     updateAuthUI();
+    await refreshAotData();
   });
 }
 
@@ -2747,6 +2719,166 @@ document.addEventListener('keydown', (event) => {
 document.querySelectorAll('.nav-btn').forEach(btn => {
   btn.addEventListener('click', () => showPage(btn.dataset.page));
 });
+
+
+/* ===== AOT Supabase live data layer ===== */
+const SYSTEM_KEY_BY_NAME = {
+  'Vedaleon vCheck':'vcheck',
+  'Vedaleon vBagDrop':'vbag',
+  'Voyager Bag Tagger':'tagger',
+  'Voyager Auto Bag Drop':'abd'
+};
+let aotSystemUuidByKey = {};
+let aotSystemKeyByUuid = {};
+let aotDataLoaded = false;
+
+async function loadAotSystemsAndTests() {
+  if (!authClient || !currentSession?.user) return;
+  const {data: sysRows, error: sysErr} = await authClient.from('aot_systems').select('id,name,system_group,icon,sort_order,is_active').eq('is_active',true).order('sort_order');
+  if (sysErr) throw sysErr;
+  aotSystemUuidByKey = {}; aotSystemKeyByUuid = {};
+  (sysRows||[]).forEach(r=>{ const key=SYSTEM_KEY_BY_NAME[r.name]; if(key){aotSystemUuidByKey[key]=r.id;aotSystemKeyByUuid[r.id]=key;} });
+
+  const {data: tcRows, error: tcErr} = await authClient.from('aot_test_cases').select('id,name,description,is_active,sort_order,aot_test_case_systems(system_id)').order('sort_order').order('created_at');
+  if (tcErr) throw tcErr;
+  tests=(tcRows||[]).map(r=>({
+    id:r.id,
+    systems:(r.aot_test_case_systems||[]).map(x=>aotSystemKeyByUuid[x.system_id]).filter(Boolean),
+    name:r.name,
+    desc:r.description||'',
+    active:!!r.is_active,
+    sort_order:r.sort_order||0
+  }));
+  aotDataLoaded=true;
+  renderHome(); renderTestCases(); renderTesting();
+}
+
+function dbResultToUi(v){ return v==='unable_to_test'?'warning':(v==='untested'?'pending':v); }
+function uiResultToDb(v){ return v==='warning'?'unable_to_test':(!v||v==='pending'?'untested':v); }
+function sessionStatusFromRows(results){
+  const vals=results.map(r=>Array.isArray(r)?r[1]:r?.result);
+  if(vals.some(v=>v==='fail')) return 'failed';
+  if(vals.length && vals.every(v=>v==='pass'||v==='warning')) return 'passed';
+  return 'incomplete';
+}
+function displayDate(v){ return v?new Date(v).toLocaleString('en-AU',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):''; }
+
+async function loadAotSessions() {
+  if (!authClient || !currentSession?.user) { sessions=[]; return; }
+  const {data,error}=await authClient.from('aot_test_sessions').select(`id,system_id,airport,run_reference,tested_by_user_id,tested_by_name,device_count,total_tests,completed_tests,started_at,created_at,aot_test_devices(id,device_name,software_type,device_order,aot_test_results(result,aot_test_cases(name)))`).order('created_at',{ascending:false});
+  if(error) throw error;
+  sessions=(data||[]).map(s=>{
+    const deviceRows=(s.aot_test_devices||[]).sort((a,b)=>a.device_order-b.device_order).map(d=>({device:d.device_name,results:(d.aot_test_results||[]).map(r=>[r.aot_test_cases?.name||'Test case',dbResultToUi(r.result)])}));
+    const flat=deviceRows.flatMap(d=>d.results);
+    return {id:s.id,creatorId:s.tested_by_user_id,creatorName:s.tested_by_name||'Staff user',system:aotSystemKeyByUuid[s.system_id]||s.system_id,airport:s.airport,reference:s.run_reference||'',device:deviceRows[0]?.device||'',deviceCount:s.device_count||deviceRows.length,started:displayDate(s.started_at||s.created_at),startedRaw:s.started_at||s.created_at,status:sessionStatusFromRows(flat),results:flat,deviceRows};
+  });
+  renderTestingAnalytics(); renderTestingHistory(); renderResults('mine');
+  if(currentUserRole==='admin') renderResults('admin');
+}
+
+async function loadAotIssues() {
+  if (!authClient || !currentSession?.user) { issues=[]; return; }
+  const {data,error}=await authClient.from('aot_issues').select('id,issue_number,raised_by_user_id,raised_by_name,system_id,airport,device_name,test_case_name,urgency,status,description,created_at').order('created_at',{ascending:false});
+  if(error) throw error;
+  issues=(data||[]).map(i=>({id:'I-'+i.issue_number,dbId:i.id,creatorId:i.raised_by_user_id,creatorName:i.raised_by_name||'Staff user',system:aotSystemKeyByUuid[i.system_id]||i.system_id,airport:i.airport||'',device:i.device_name||'',testName:i.test_case_name||'Testing failure',priority:String(i.urgency||'Medium').toLowerCase(),status:i.status==='Investigating'?'in-progress':String(i.status||'Open').toLowerCase(),created:displayDate(i.created_at),description:i.description||''}));
+  renderIssues('mine'); if(currentUserRole==='admin') renderIssues('admin');
+}
+
+async function refreshAotData(){
+  if(!currentSession?.user) return;
+  try { await loadAotSystemsAndTests(); await Promise.all([loadAotSessions(),loadAotIssues()]); }
+  catch(error){ console.error('AOT data load failed:',error); alert('Could not load AOT data from Supabase: '+(error.message||error)); }
+}
+
+async function saveModal() {
+  const name=document.getElementById('modal-name').value.trim();
+  const assigned=getAssignedSystemIds('modal');
+  const desc=document.getElementById('modal-description').value.trim()||'No description supplied.';
+  if(!name){document.getElementById('modal-name').focus();return;} if(!assigned.length)return;
+  try{
+    const nextOrder=(tests.reduce((m,t)=>Math.max(m,t.sort_order||0),0)||0)+10;
+    const {data,error}=await authClient.from('aot_test_cases').insert({name,description:desc,is_active:true,sort_order:nextOrder,created_by_user_id:currentUser.id,created_by_name:currentUser.name}).select('id').single();
+    if(error)throw error;
+    const links=assigned.map(k=>({test_case_id:data.id,system_id:aotSystemUuidByKey[k]})).filter(x=>x.system_id);
+    if(links.length){const {error:e}=await authClient.from('aot_test_case_systems').insert(links);if(e)throw e;}
+    hideModal(); await loadAotSystemsAndTests();
+  }catch(error){alert('Could not create test case: '+(error.message||error));}
+}
+
+async function saveInlineEdit(id) {
+  const name=document.getElementById('edit-name-'+id)?.value.trim(); const desc=document.getElementById('edit-desc-'+id)?.value.trim(); const assigned=getAssignedSystemIds('edit-'+id);
+  if(!name||!assigned.length)return;
+  try{
+    let {error}=await authClient.from('aot_test_cases').update({name,description:desc||'No description supplied.'}).eq('id',id); if(error)throw error;
+    ({error}=await authClient.from('aot_test_case_systems').delete().eq('test_case_id',id)); if(error)throw error;
+    const links=assigned.map(k=>({test_case_id:id,system_id:aotSystemUuidByKey[k]})).filter(x=>x.system_id);
+    if(links.length){({error}=await authClient.from('aot_test_case_systems').insert(links));if(error)throw error;}
+    inlineEditingId=null; await loadAotSystemsAndTests();
+  }catch(error){alert('Could not save test case: '+(error.message||error));}
+}
+
+async function toggleActive(id){ const t=tests.find(x=>x.id===id); if(!t)return; const {error}=await authClient.from('aot_test_cases').update({is_active:!t.active}).eq('id',id); if(error){alert(error.message);return;} await loadAotSystemsAndTests(); }
+
+async function cloneTest(id){
+  const source=tests.find(x=>x.id===id); if(!source)return;
+  try{
+    const nextOrder=(source.sort_order||0)+1;
+    const {data,error}=await authClient.from('aot_test_cases').insert({name:source.name+' (Copy)',description:source.desc,is_active:source.active,sort_order:nextOrder,created_by_user_id:currentUser.id,created_by_name:currentUser.name}).select('id').single(); if(error)throw error;
+    const links=getAssignedSystems(source).map(k=>({test_case_id:data.id,system_id:aotSystemUuidByKey[k]})).filter(x=>x.system_id); if(links.length){const {error:e}=await authClient.from('aot_test_case_systems').insert(links);if(e)throw e;}
+    await loadAotSystemsAndTests(); inlineEditingId=data.id; renderTestCases(); requestAnimationFrame(()=>{const e=document.getElementById('edit-name-'+data.id);e?.focus();e?.select();});
+  }catch(error){alert('Could not clone test case: '+(error.message||error));}
+}
+
+async function deleteTest(id){
+  if(currentUserRole!=='admin'){alert('Only Admins can delete test cases.');return;}
+  const t=tests.find(x=>x.id===id); if(!t)return;
+  if(!confirm(`Delete "${t.name}" permanently?`))return;
+  const {error}=await authClient.from('aot_test_cases').delete().eq('id',id); if(error){alert('Could not delete test case: '+error.message);return;} await loadAotSystemsAndTests();
+}
+
+function attachAdminDragHandlers(){
+  const list=document.getElementById('admin-list'); if(!list)return;
+  list.querySelectorAll('.admin-row').forEach(row=>{
+    row.addEventListener('dragstart',()=>{draggedId=row.dataset.id;row.classList.add('dragging');});
+    row.addEventListener('dragend',async()=>{row.classList.remove('dragging');draggedId=null; const updates=tests.map((t,i)=>authClient.from('aot_test_cases').update({sort_order:(i+1)*10}).eq('id',t.id)); await Promise.all(updates); await loadAotSystemsAndTests();});
+    row.addEventListener('dragover',e=>{e.preventDefault();row.classList.add('over');}); row.addEventListener('dragleave',()=>row.classList.remove('over'));
+    row.addEventListener('drop',e=>{e.preventDefault();row.classList.remove('over');const targetId=row.dataset.id;if(draggedId===targetId)return;const from=tests.findIndex(t=>String(t.id)===String(draggedId));const to=tests.findIndex(t=>String(t.id)===String(targetId));if(from<0||to<0)return;const[moved]=tests.splice(from,1);tests.splice(to,0,moved);inlineEditingId=null;renderTestCases();});
+  });
+}
+
+async function saveTestingRun(){
+  const stats=computeTestingStats(); if(!stats.total){alert('There are no active test cases for this system.');return;} if(!currentUser?.id){openAuthModal();return;}
+  const systemUuid=aotSystemUuidByKey[selectedTestingSystem]; if(!systemUuid){alert('System mapping is unavailable. Refresh and try again.');return;}
+  try{
+    const {data:session,error:sErr}=await authClient.from('aot_test_sessions').insert({system_id:systemUuid,airport:testingAirportCode(),run_reference:document.getElementById('testing-reference')?.value?.trim()||null,tested_by_user_id:currentUser.id,tested_by_name:currentUser.name||formatUserName(currentUser.email),quick_test:quickTestOn,status:stats.completed===stats.total?'completed':'in_progress',device_count:testingDevices.length,total_tests:stats.total,completed_tests:stats.completed,completed_at:stats.completed===stats.total?new Date().toISOString():null}).select('id').single(); if(sErr)throw sErr;
+    const devicePayload=testingDevices.map((d,i)=>({session_id:session.id,device_name:d.id||`Device ${i+1}`,software_type:resultSystemName(selectedTestingSystem),device_order:i+1}));
+    const {data:dbDevices,error:dErr}=await authClient.from('aot_test_devices').insert(devicePayload).select('id,device_order'); if(dErr)throw dErr;
+    const byOrder=new Map((dbDevices||[]).map(d=>[d.device_order,d.id]));
+    const resultPayload=[]; testingDevices.forEach((d,i)=>stats.active.forEach(t=>resultPayload.push({session_id:session.id,device_id:byOrder.get(i+1),test_case_id:t.id,result:uiResultToDb(d.results[t.id])})));
+    if(resultPayload.length){const {error:rErr}=await authClient.from('aot_test_results').insert(resultPayload);if(rErr)throw rErr;}
+    alert('Testing run saved successfully.'); currentSession=null; await loadAotSessions();
+  }catch(error){console.error(error);alert('Could not save testing run: '+(error.message||error));}
+}
+
+async function createIssueFromModal(){
+  const modal=document.getElementById('issue-modal'); const testId=modal.dataset.testId; const test=tests.find(t=>String(t.id)===String(testId)); if(!test)return;
+  const deviceIndex=Number(modal.dataset.deviceIndex||0); const device=testingDevices[deviceIndex]?.id||'Device 01';
+  try{
+    const {data,error}=await authClient.from('aot_issues').insert({raised_by_user_id:currentUser.id,raised_by_name:currentUser.name||formatUserName(currentUser.email),system_id:aotSystemUuidByKey[selectedTestingSystem],airport:testingAirportCode(),device_name:device,test_case_name:test.name,urgency:(document.getElementById('issue-priority').value||'high').replace(/^./,c=>c.toUpperCase()),status:'Open',description:document.getElementById('issue-description').value.trim()||test.desc}).select('issue_number').single(); if(error)throw error;
+    closeIssueModal(); await loadAotIssues(); alert(`Issue I-${data.issue_number} raised successfully.`); showPage('issues');
+  }catch(error){alert('Could not raise issue: '+(error.message||error));}
+}
+
+async function cycleIssueStatus(id){
+  if(currentUserRole!=='admin')return; const i=issues.find(x=>x.id===id); if(!i)return;
+  const next=i.status==='open'?'Investigating':i.status==='in-progress'?'Resolved':'Open';
+  const {error}=await authClient.from('aot_issues').update({status:next}).eq('id',i.dbId); if(error){alert(error.message);return;} await loadAotIssues();
+}
+
+function syncIssueFailedTest(){ const modal=document.getElementById('issue-modal');const select=document.getElementById('issue-failed-test-select');if(!modal||!select)return;const testId=select.value;modal.dataset.testId=testId;const test=tests.find(t=>String(t.id)===String(testId));if(test){document.getElementById('issue-test-name').textContent=test.name;document.getElementById('issue-description').value=test.desc;} }
+function openIssueModalForMatrix(deviceIndex,testId){ const test=tests.find(t=>String(t.id)===String(testId));if(!test)return;const device=testingDevices[deviceIndex]?.id||'Device 01';const modal=document.getElementById('issue-modal');document.getElementById('issue-modal-title').textContent='Raise an issue';document.getElementById('issue-test-name').textContent=test.name;document.getElementById('issue-system').textContent=resultSystemName(selectedTestingSystem);document.getElementById('issue-airport').textContent=testingAirportCode();document.getElementById('issue-device').textContent=device;document.getElementById('issue-description').value=test.desc;document.getElementById('issue-priority').value='high';document.getElementById('issue-failed-test-wrap')?.classList.add('hidden');modal.dataset.testId=testId;modal.dataset.deviceIndex=deviceIndex;modal.classList.add('open'); }
+
+async function afterAotAuthReady(){ if(currentSession?.user) await refreshAotData(); else {tests=[];sessions=[];issues=[];renderHome();} }
 
 selectedTestingSystem = 'tagger';
 initTheme();
