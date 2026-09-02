@@ -1014,6 +1014,12 @@
   body.dark .issue-comment { background:var(--dark-surface-2); border-color:var(--dark-border); }
   body.dark .issue-comment-compose textarea { background:var(--dark-surface-2); color:#fff; border:1px solid var(--dark-border); }
 
+
+  .admin-inline-delete{display:block;margin-top:8px;width:100%;white-space:nowrap;}
+  .issue-admin-toolbar{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;padding:11px 12px;border:1px solid var(--grey-20);border-radius:12px;background:var(--grey-5);margin-bottom:14px;}
+  .issue-admin-toolbar .issue-status-actions{margin:0;justify-content:flex-end;}
+  body.dark .issue-admin-toolbar{background:var(--dark-surface-2);border-color:var(--dark-border);}
+  @media (max-width:620px){.admin-inline-delete{width:auto;display:inline-block}.issue-admin-toolbar .issue-status-actions{justify-content:flex-start;}}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -1226,7 +1232,7 @@
       </div>
 
       <div class="card results-filters">
-        <div class="field"><label>Status</label><select id="issues-status-filter" onchange="renderIssues('mine')"><option value="all">All statuses</option><option value="open">Open</option><option value="in-progress">In progress</option><option value="resolved">Resolved</option></select></div>
+        <div class="field"><label>Status</label><select id="issues-status-filter" onchange="renderIssues('mine')"><option value="all">All statuses</option><option value="open">Open</option><option value="under-investigation">Under Investigation</option><option value="re-test">Re-Test</option><option value="closed">Closed</option></select></div>
         <div class="field"><label>Priority</label><select id="issues-priority-filter" onchange="renderIssues('mine')"><option value="all">All priorities</option><option value="critical">Critical</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></div>
         <div class="field"><label>Airport</label><select id="issues-airport-filter" onchange="renderIssues('mine')"><option value="all">All airports</option><option>BNE</option><option>SYD</option><option>MEL</option><option>PER</option></select></div>
         <div style="display:flex;align-items:end"><button class="btn btn-secondary" onclick="clearIssueFilters('mine')">Clear</button></div>
@@ -1884,7 +1890,7 @@ function renderResults(scope='mine') {
         <div><strong>${escapeHtml(resultSystemName(s.system))}</strong><span>${escapeHtml(s.device)} · ${escapeHtml(s.airport)}</span></div>
         <div><strong>${escapeHtml(s.creatorName)}</strong><span>Created by</span></div>
         <div><strong>${escapeHtml(s.started)}</strong><span>Testing session</span></div>
-        <div class="result-kpi">${resultPill(s.status)}</div>
+        <div class="result-kpi">${resultPill(s.status)}${scope === 'admin' ? `<button class="btn btn-danger btn-small admin-inline-delete" onclick="event.stopPropagation();requestDeleteSession('${s.id}')">Delete test data</button>` : ''}</div>
       </div>
       <div class="result-detail" id="result-detail-${s.id}">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
@@ -2006,9 +2012,7 @@ function renderIssues(scope='mine') {
           <div class="meta-box"><span>Priority</span><strong>${issuePriorityLabel(i.priority)}</strong></div>
         </div>
         <div class="issue-management" onclick="event.stopPropagation()">
-          ${scope === 'admin' ? `<div class="issue-status-actions">
-            ${['open','under-investigation','re-test','closed'].map(st=>`<button class="btn btn-small ${i.status===st?'btn-primary active-status':'btn-secondary'}" onclick="setIssueStatus('${i.id}','${st}')">${issueStatusLabel(st)}</button>`).join('')}
-          </div>` : ''}
+          ${scope === 'admin' ? `<div class="issue-admin-toolbar"><div><strong style="font-size:12px;">Issue status</strong><div style="font-size:10px;color:var(--grey-70);margin-top:3px;">Change status or reopen the issue.</div></div><div class="issue-status-actions">${['open','under-investigation','re-test','closed'].map(st=>`<button class="btn btn-small ${i.status===st?'btn-primary active-status':'btn-secondary'}" onclick="setIssueStatus('${i.id}','${st}')">${issueStatusLabel(st)}</button>`).join('')}</div></div>` : ''}
           <div class="issue-comments">
             <strong style="font-size:12px;">Comments</strong>
             <div id="issue-comments-${i.dbId}">${renderIssueComments(i)}</div>
