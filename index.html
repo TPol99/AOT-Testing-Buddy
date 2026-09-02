@@ -751,7 +751,17 @@
   .issue-main strong { display:block; font-size:14px; }
   .issue-main span { display:block; color:var(--grey-70); font-size:12px; margin-top:4px; }
   .issue-status { text-align:center; display:flex; justify-content:center; align-items:center; gap:8px; flex-wrap:wrap; }
-  .issue-status .pill { justify-content:center; text-align:center; min-width:96px; }
+  .issue-status .pill {
+    justify-content:center;
+    align-items:center;
+    text-align:center;
+    min-width:150px;
+    min-height:30px;
+    padding:7px 14px;
+    white-space:nowrap;
+    line-height:1;
+    flex:0 0 150px;
+  }
   .admin-delete-header { white-space:nowrap; }
   .issue-detail { margin-top:12px; padding:14px; border-top:1px solid var(--grey-20); display:none; }
   .issue-detail.open { display:block; }
@@ -768,6 +778,7 @@
   @media (max-width: 850px) {
     .issue-main { grid-template-columns:1fr 1fr; }
     .issue-status { text-align:left; justify-content:flex-start; }
+    .issue-status .pill { min-width:150px; flex-basis:150px; }
     .issue-meta { grid-template-columns:1fr 1fr; }
     .issue-form-grid { grid-template-columns:1fr; }
     .issue-form-grid .full { grid-column:auto; }
