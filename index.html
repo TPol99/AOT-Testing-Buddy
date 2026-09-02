@@ -747,20 +747,22 @@
 
   .issue-card { padding:18px; margin-bottom:10px; cursor:pointer; transition:.16s ease; }
   .issue-card:hover { transform:translateY(-1px); box-shadow:0 16px 32px rgba(28,27,29,.09); }
-  .issue-main { display:grid; grid-template-columns: 1.35fr 1fr 1fr 110px; gap:14px; align-items:center; }
+  .issue-main { display:grid; grid-template-columns:minmax(220px,1.35fr) minmax(120px,1fr) minmax(150px,1fr) minmax(170px,auto); gap:14px; align-items:center; }
   .issue-main strong { display:block; font-size:14px; }
   .issue-main span { display:block; color:var(--grey-70); font-size:12px; margin-top:4px; }
   .issue-status { text-align:center; display:flex; justify-content:center; align-items:center; gap:8px; flex-wrap:wrap; }
   .issue-status .pill {
+    display:inline-flex;
     justify-content:center;
     align-items:center;
     text-align:center;
-    min-width:150px;
+    min-width:max-content;
     min-height:30px;
-    padding:7px 14px;
+    width:auto;
+    padding:7px 16px;
     white-space:nowrap;
     line-height:1;
-    flex:0 0 150px;
+    flex:0 1 auto;
   }
   .admin-delete-header { white-space:nowrap; }
   .issue-detail { margin-top:12px; padding:14px; border-top:1px solid var(--grey-20); display:none; }
@@ -778,7 +780,7 @@
   @media (max-width: 850px) {
     .issue-main { grid-template-columns:1fr 1fr; }
     .issue-status { text-align:left; justify-content:flex-start; }
-    .issue-status .pill { min-width:150px; flex-basis:150px; }
+    .issue-status .pill { min-width:max-content; flex-basis:auto; }
     .issue-meta { grid-template-columns:1fr 1fr; }
     .issue-form-grid { grid-template-columns:1fr; }
     .issue-form-grid .full { grid-column:auto; }
