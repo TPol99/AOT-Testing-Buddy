@@ -1018,6 +1018,8 @@
   .admin-inline-delete{display:block;margin-top:8px;width:100%;white-space:nowrap;}
   .issue-admin-toolbar{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;padding:11px 12px;border:1px solid var(--grey-20);border-radius:12px;background:var(--grey-5);margin-bottom:14px;}
   .issue-admin-toolbar .issue-status-actions{margin:0;justify-content:flex-end;}
+  .issue-admin-toolbar-copy{flex:1 1 220px;}
+  .admin-issue-delete{margin-left:auto;white-space:nowrap;}
   body.dark .issue-admin-toolbar{background:var(--dark-surface-2);border-color:var(--dark-border);}
   @media (max-width:620px){.admin-inline-delete{width:auto;display:inline-block}.issue-admin-toolbar .issue-status-actions{justify-content:flex-start;}}
 </style>
@@ -1979,6 +1981,10 @@ function clearResultFilters(scope='mine') {
   renderResults(scope);
 }
 
+function formatTicketNumber(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? `VA-AOT-TKT${String(n).padStart(4,'0')}` : 'VA-AOT-TKT0000';
+}
 function issueStatusLabel(status) { return {'open':'Open','under-investigation':'Under Investigation','re-test':'Re-Test','closed':'Closed'}[status] || status; }
 function issuePriorityLabel(priority) { return priority.charAt(0).toUpperCase() + priority.slice(1); }
 function issuePill(status) { return `<span class="pill ${status === 'closed' ? 'pass' : status === 'open' ? 'fail' : 'warning'}">${issueStatusLabel(status)}</span>`; }
@@ -1996,10 +2002,31 @@ function renderIssues(scope='mine') {
   const target = document.getElementById(scope === 'admin' ? 'admin-issues-list' : 'my-issues-list');
   if (!target) return;
   if (!visible.length) { target.innerHTML = '<div class="card empty">No issues match these filters.</div>'; return; }
-  target.innerHTML = visible.map(i => `
+
+  target.innerHTML = visible.map(i => {
+    const ticketNo = escapeHtml(i.id);
+    const statusControls = `
+      <div class="issue-admin-toolbar" onclick="event.stopPropagation()">
+        <div class="issue-admin-toolbar-copy">
+          <strong style="font-size:12px;">Issue status</strong>
+          <div style="font-size:10px;color:var(--grey-70);margin-top:3px;">Change the ticket status or reopen it at any time.</div>
+        </div>
+        <div class="issue-status-actions">
+          ${['open','under-investigation','re-test','closed'].map(st => `
+            <button type="button" class="btn btn-small ${i.status===st?'btn-primary active-status':'btn-secondary'}" onclick="setIssueStatus('${i.id}','${st}')">
+              ${issueStatusLabel(st)}
+            </button>`).join('')}
+        </div>
+        ${scope === 'admin' ? `<button type="button" class="btn btn-danger btn-small admin-issue-delete" onclick="requestDeleteIssue('${i.id}')">Delete issue</button>` : ''}
+      </div>`;
+
+    return `
     <div class="card issue-card" onclick="toggleIssueDetail('${i.id}')">
       <div class="issue-main">
-        <div><strong>${escapeHtml(i.id)} · ${escapeHtml(i.testName)}</strong><span>${escapeHtml(issueSystemName(i.system))} · ${escapeHtml(i.device)} · ${escapeHtml(i.airport)}</span></div>
+        <div>
+          <strong>${ticketNo} · ${escapeHtml(i.testName)}</strong>
+          <span>${escapeHtml(issueSystemName(i.system))} · ${escapeHtml(i.device)} · ${escapeHtml(i.airport)}</span>
+        </div>
         <div><strong>${escapeHtml(i.creatorName)}</strong><span>Raised by</span></div>
         <div><strong>${escapeHtml(i.created)}</strong><span>${issuePriorityLabel(i.priority)} priority</span></div>
         <div class="issue-status">${issuePill(i.status)}</div>
@@ -2012,21 +2039,26 @@ function renderIssues(scope='mine') {
           <div class="meta-box"><span>Priority</span><strong>${issuePriorityLabel(i.priority)}</strong></div>
         </div>
         <div class="issue-management" onclick="event.stopPropagation()">
-          ${scope === 'admin' ? `<div class="issue-admin-toolbar"><div><strong style="font-size:12px;">Issue status</strong><div style="font-size:10px;color:var(--grey-70);margin-top:3px;">Change status or reopen the issue.</div></div><div class="issue-status-actions">${['open','under-investigation','re-test','closed'].map(st=>`<button class="btn btn-small ${i.status===st?'btn-primary active-status':'btn-secondary'}" onclick="setIssueStatus('${i.id}','${st}')">${issueStatusLabel(st)}</button>`).join('')}</div></div>` : ''}
+          ${statusControls}
           <div class="issue-comments">
             <strong style="font-size:12px;">Comments</strong>
             <div id="issue-comments-${i.dbId}">${renderIssueComments(i)}</div>
-            <div class="issue-comment-compose"><textarea id="issue-comment-input-${i.dbId}" placeholder="Add a comment..."></textarea><button class="btn btn-primary btn-small" onclick="addIssueComment('${i.id}')">Add comment</button></div>
+            <div class="issue-comment-compose">
+              <textarea id="issue-comment-input-${i.dbId}" placeholder="Add a comment..."></textarea>
+              <button type="button" class="btn btn-primary btn-small" onclick="addIssueComment('${i.id}')">Add comment</button>
+            </div>
           </div>
-          <div class="issue-history"><strong style="font-size:12px;">History</strong><div>${renderIssueHistory(i)}</div></div>
+          <div class="issue-history">
+            <strong style="font-size:12px;">Status history</strong>
+            <div>${renderIssueHistory(i)}</div>
+          </div>
           <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px;flex-wrap:wrap;">
-            <button class="btn btn-secondary btn-small" onclick="downloadIssueCSV('${i.id}')">Export issue CSV</button>
-            ${scope === 'admin' ? `<button class="btn btn-danger btn-small" onclick="requestDeleteIssue('${i.id}')">Delete issue</button>` : ''}
+            <button type="button" class="history-export" onclick="downloadIssueCSV('${i.id}')">Export issue CSV</button>
           </div>
         </div>
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 }
 
 function toggleIssueDetail(id) { document.getElementById('issue-detail-' + id)?.classList.toggle('open'); }
@@ -2035,10 +2067,10 @@ function clearIssueFilters(scope='mine') {
   renderIssues(scope);
 }
 function cycleIssueStatus(id) {
+  const order = ['open','under-investigation','re-test','closed'];
   const i = issues.find(x => x.id === id); if (!i) return;
-  i.status = i.status === 'open' ? 'in-progress' : i.status === 'in-progress' ? 'resolved' : 'open';
-  renderIssues('admin');
-  renderIssues('mine');
+  const next = order[(Math.max(0, order.indexOf(i.status)) + 1) % order.length];
+  setIssueStatus(id, next);
 }
 function downloadIssueCSV(id) {
   const i = issues.find(x => x.id === id); if (!i) return;
@@ -3045,7 +3077,7 @@ async function loadAotIssues() {
   if (!authClient || !currentSession?.user) { issues=[]; return; }
   const {data,error}=await authClient.from('aot_issues').select('id,issue_number,raised_by_user_id,raised_by_name,system_id,airport,device_name,test_case_name,urgency,status,description,created_at,aot_issue_comments(id,comment,author_user_id,author_name,created_at),aot_issue_status_history(id,old_status,new_status,changed_by_user_id,changed_by_name,created_at)').order('created_at',{ascending:false});
   if(error) throw error;
-  issues=(data||[]).map(i=>({id:'I-'+i.issue_number,dbId:i.id,creatorId:i.raised_by_user_id,creatorName:i.raised_by_name||'Staff user',system:aotSystemKeyByUuid[i.system_id]||i.system_id,airport:i.airport||'',device:i.device_name||'',testName:i.test_case_name||'Testing failure',priority:String(i.urgency||'Medium').toLowerCase(),status:String(i.status||'Open').toLowerCase().replaceAll(' ','-'),created:displayDate(i.created_at),description:i.description||'',comments:(i.aot_issue_comments||[]).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)).map(c=>({comment:c.comment,authorName:c.author_name,createdAt:c.created_at})),history:(i.aot_issue_status_history||[]).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).map(h=>({oldStatus:h.old_status,newStatus:h.new_status,actorName:h.changed_by_name,createdAt:h.created_at}))}));
+  issues=(data||[]).map(i=>({id:formatTicketNumber(i.issue_number),dbId:i.id,creatorId:i.raised_by_user_id,creatorName:i.raised_by_name||'Staff user',system:aotSystemKeyByUuid[i.system_id]||i.system_id,airport:i.airport||'',device:i.device_name||'',testName:i.test_case_name||'Testing failure',priority:String(i.urgency||'Medium').toLowerCase(),status:String(i.status||'Open').toLowerCase().replaceAll(' ','-'),created:displayDate(i.created_at),description:i.description||'',comments:(i.aot_issue_comments||[]).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)).map(c=>({comment:c.comment,authorName:c.author_name,createdAt:c.created_at})),history:(i.aot_issue_status_history||[]).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).map(h=>({oldStatus:h.old_status,newStatus:h.new_status,actorName:h.changed_by_name,createdAt:h.created_at}))}));
   renderIssues('mine'); if(currentUserRole==='admin') renderIssues('admin');
 }
 
@@ -3130,15 +3162,21 @@ async function createIssueFromModal(){
   const deviceIndex=Number(modal.dataset.deviceIndex||0); const device=testingDevices[deviceIndex]?.id||'Device 01';
   try{
     const {data,error}=await authClient.from('aot_issues').insert({raised_by_user_id:currentUser.id,raised_by_name:currentUser.name||formatUserName(currentUser.email),system_id:aotSystemUuidByKey[selectedTestingSystem],airport:testingAirportCode(),device_name:device,test_case_name:test.name,urgency:(document.getElementById('issue-priority').value||'high').replace(/^./,c=>c.toUpperCase()),status:'Open',description:document.getElementById('issue-description').value.trim()||test.desc}).select('issue_number').single(); if(error)throw error;
-    closeIssueModal(); await loadAotIssues(); alert(`Issue I-${data.issue_number} raised successfully.`); showPage('issues');
+    closeIssueModal(); await loadAotIssues(); alert(`${formatTicketNumber(data.issue_number)} raised successfully.`); showPage('issues');
   }catch(error){alert('Could not raise issue: '+(error.message||error));}
 }
 
 async function setIssueStatus(id,statusKey){
-  if(currentUserRole!=='admin')return; const i=issues.find(x=>x.id===id); if(!i)return;
+  if(!currentUser?.id)return;
+  const i=issues.find(x=>x.id===id); if(!i)return;
   const dbStatus={'open':'Open','under-investigation':'Under Investigation','re-test':'Re-Test','closed':'Closed'}[statusKey]; if(!dbStatus)return;
   if(i.status===statusKey)return;
-  try{ const {error}=await authClient.from('aot_issues').update({status:dbStatus}).eq('id',i.dbId); if(error)throw error; await loadAotIssues(); }catch(error){alert('Could not update issue status: '+error.message);}
+  try{
+    const {error}=await authClient.from('aot_issues').update({status:dbStatus}).eq('id',i.dbId);
+    if(error)throw error;
+    await loadAotIssues();
+    renderIssues(i.creatorId===currentUser.id ? 'mine' : 'admin');
+  }catch(error){alert('Could not update issue status: '+error.message);}
 }
 async function addIssueComment(id){
   const i=issues.find(x=>x.id===id); if(!i||!currentUser?.id)return; const input=document.getElementById('issue-comment-input-'+i.dbId); const comment=input?.value.trim(); if(!comment)return;
