@@ -1027,7 +1027,7 @@
         </div>
 
         <div class="testing-footer-actions">
-          <button class="btn btn-secondary" onclick="resetTestingRun()">Reset</button>
+          <button class="btn btn-secondary" onclick="requestTestingReset()">Reset</button>
           <button class="btn btn-primary" onclick="saveTestingRun()">Save Testing</button>
         </div>
       </div>
@@ -1353,7 +1353,45 @@ function getAssignedSystemIds(prefix) {
 let pendingProtectedPage = null;
 const protectedPages = new Set(['testing','results','issues','test-cases']);
 
+function hasNamedTestingDevice() {
+  return testingDevices.some((device, index) => {
+    const value = String(device?.id || '').trim();
+    const defaultName = `Device ${String(index + 1).padStart(2,'0')}`;
+    return value && value !== defaultName;
+  });
+}
+
+function isTestingPageActive() {
+  return !document.getElementById('page-testing')?.classList.contains('hidden');
+}
+
+function confirmLeaveTesting() {
+  return window.confirm('Leave testing?\n\nYou have entered one or more device names. Leaving this page will clear the current devices and test results.\n\nSelect OK to leave and reset the test, or Cancel to keep testing.');
+}
+
+function clearTestingRunOnLeave() {
+  resetTestingRun(false);
+  const ref = document.getElementById('testing-reference');
+  if (ref) ref.value = '';
+}
+
+function requestTestingReset() {
+  if (hasNamedTestingDevice()) {
+    const ok = window.confirm('Reset testing?\n\nThis will clear all device names and test results from the current testing session. This cannot be undone.');
+    if (!ok) return;
+  }
+  resetTestingRun();
+  const ref = document.getElementById('testing-reference');
+  if (ref) ref.value = '';
+}
+
 function showPage(page) {
+  if (page !== 'testing' && isTestingPageActive() && hasNamedTestingDevice()) {
+    if (!confirmLeaveTesting()) return;
+    clearTestingRunOnLeave();
+  } else if (page !== 'testing' && isTestingPageActive()) {
+    clearTestingRunOnLeave();
+  }
   if (protectedPages.has(page) && !currentSession?.user) {
     pendingProtectedPage = page;
     openAuthModal('signin', 'Please sign in to access this page.');
@@ -2650,6 +2688,8 @@ function updateAuthUI() {
   if (currentSession?.user) {
     button.textContent = 'Sign out';
     button.onclick = async () => {
+      if (isTestingPageActive() && hasNamedTestingDevice() && !confirmLeaveTesting()) return;
+      if (isTestingPageActive()) clearTestingRunOnLeave();
       await authClient?.auth.signOut();
       currentSession = null; currentUser = null; currentUserRole = null;
       pendingProtectedPage = null;
@@ -2714,6 +2754,13 @@ async function initAuth() {
 
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') closeAuthModal();
+});
+
+window.addEventListener('beforeunload', (event) => {
+  if (isTestingPageActive() && hasNamedTestingDevice()) {
+    event.preventDefault();
+    event.returnValue = '';
+  }
 });
 
 document.querySelectorAll('.nav-btn').forEach(btn => {
