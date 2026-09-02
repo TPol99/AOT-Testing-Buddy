@@ -335,6 +335,20 @@
   body.dark .analytics-kpis > div { background:var(--dark-surface-2); }
   body.dark .trend-panel { background:var(--dark-surface); }
   body.dark .inline-editor { background:linear-gradient(180deg,#282231,#211c2b); border-color:var(--dark-border); }
+  body.dark .admin-row {
+    background:var(--dark-surface-2);
+    border-color:var(--dark-border);
+    color:#fff;
+  }
+  body.dark .admin-row.over { background:#322541; border-color:#a85cff; }
+  body.dark .admin-main strong { color:#fff; }
+  body.dark .admin-main span { color:#c9c1d0; }
+  body.dark .drag { background:#352e41; color:#c9c1d0; }
+  body.dark .assignment-pill { background:#352e41; color:#e8e2ed; }
+  body.dark .status-toggle.inactive { background:#352e41; color:#c9c1d0; }
+  body.dark .clone-btn,
+  body.dark .admin-row .btn-secondary { background:#352e41; color:#fff; border-color:#574b66; }
+  body.dark .admin-row .btn-danger { background:#451a24; color:#ff8796; }
   body.dark .editor-system-option { background:var(--dark-surface-2); border-color:var(--dark-border); color:#fff; }
   body.dark .editor-system-option.selected { background:#322541; border-color:#a85cff; }
   body.dark .editor-system-option .assign-check { background:#211c2b; border-color:#5a4d68; }
@@ -983,6 +997,23 @@
     .test-actions { grid-column:2; justify-content:flex-start; flex-wrap:wrap; }
     .test-actions .pill { order:-1; }
   }
+  /* Admin issue management */
+  .issue-management { margin-top:14px; padding-top:14px; border-top:1px solid var(--grey-20); }
+  .issue-status-actions { display:flex; flex-wrap:wrap; gap:7px; margin-bottom:14px; }
+  .issue-status-actions .active-status { box-shadow:0 0 0 2px var(--va-purple); }
+  .issue-comments { margin-top:12px; }
+  .issue-comment { padding:10px 12px; border:1px solid var(--grey-20); border-radius:11px; margin-top:8px; background:var(--grey-5); }
+  .issue-comment-head { display:flex; justify-content:space-between; gap:10px; font-size:10px; color:var(--grey-70); margin-bottom:5px; }
+  .issue-comment-body { font-size:12px; line-height:1.45; }
+  .issue-history { margin-top:14px; }
+  .issue-history-row { display:grid; grid-template-columns:120px 1fr; gap:10px; padding:8px 0; border-bottom:1px solid var(--grey-20); font-size:11px; }
+  .issue-history-row:last-child { border-bottom:0; }
+  .issue-history-time { color:var(--grey-70); }
+  .issue-comment-compose { display:flex; gap:8px; margin-top:10px; }
+  .issue-comment-compose textarea { flex:1; min-height:64px; resize:vertical; }
+  body.dark .issue-comment { background:var(--dark-surface-2); border-color:var(--dark-border); }
+  body.dark .issue-comment-compose textarea { background:var(--dark-surface-2); color:#fff; border:1px solid var(--dark-border); }
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -1307,6 +1338,20 @@
     <div class="testing-warning-actions">
       <button class="btn btn-secondary" id="testing-warning-cancel" type="button" onclick="closeTestingWarning()">Stay on Testing</button>
       <button class="btn btn-primary" id="testing-warning-confirm" type="button" onclick="confirmTestingWarning()">Leave Testing</button>
+    </div>
+  </div>
+</div>
+
+<div class="testing-warning-backdrop" id="admin-confirm-modal" onclick="if(event.target===this) closeAdminConfirm()">
+  <div class="testing-warning-dialog" role="dialog" aria-modal="true">
+    <button class="testing-warning-close" type="button" onclick="closeAdminConfirm()">×</button>
+    <div class="testing-warning-icon">⚠️</div>
+    <div class="testing-warning-eyebrow">ADMIN ACTION</div>
+    <h2 id="admin-confirm-title">Are you sure?</h2>
+    <p id="admin-confirm-copy">This action cannot be undone.</p>
+    <div class="testing-warning-actions">
+      <button class="btn btn-secondary" type="button" onclick="closeAdminConfirm()">Cancel</button>
+      <button class="btn btn-danger" id="admin-confirm-action" type="button" onclick="confirmAdminAction()">Delete</button>
     </div>
   </div>
 </div>
@@ -1844,7 +1889,7 @@ function renderResults(scope='mine') {
       <div class="result-detail" id="result-detail-${s.id}">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
           <div style="font-size:12px;color:var(--grey-70);">Session ${escapeHtml(s.id)} · ${s.results.length} test result(s)</div>
-          <button class="history-export" onclick='event.stopPropagation();exportSessionCSV(${JSON.stringify(s).replace(/'/g,"&#39;")})'>⇩ Export CSV</button>
+          <div style="display:flex;gap:7px;align-items:center;"><button class="history-export" onclick='event.stopPropagation();exportSessionCSV(${JSON.stringify(s).replace(/'/g,"&#39;")})'>⇩ Export CSV</button>${scope === 'admin' ? `<button class="btn btn-danger btn-small" onclick="event.stopPropagation();requestDeleteSession('${s.id}')">Delete test data</button>` : ''}</div>
         </div>
         <div class="result-tests">${s.results.map(r => `<div class="result-test-row"><div class="result-test-name">${escapeHtml(r[0])}</div><div class="result-test-state"><span class="pill ${r[1] === 'pass' ? 'pass' : r[1] === 'fail' ? 'fail' : 'warning'}">${labelForResult(r[1])}</span></div></div>`).join('')}</div>
       </div>
@@ -1928,9 +1973,9 @@ function clearResultFilters(scope='mine') {
   renderResults(scope);
 }
 
-function issueStatusLabel(status) { return {'open':'Open','in-progress':'In progress','resolved':'Resolved'}[status] || status; }
+function issueStatusLabel(status) { return {'open':'Open','under-investigation':'Under Investigation','re-test':'Re-Test','closed':'Closed'}[status] || status; }
 function issuePriorityLabel(priority) { return priority.charAt(0).toUpperCase() + priority.slice(1); }
-function issuePill(status) { return `<span class="pill ${status === 'resolved' ? 'pass' : status === 'open' ? 'fail' : 'warning'}">${issueStatusLabel(status)}</span>`; }
+function issuePill(status) { return `<span class="pill ${status === 'closed' ? 'pass' : status === 'open' ? 'fail' : 'warning'}">${issueStatusLabel(status)}</span>`; }
 function issuePriorityPill(priority) { return `<span class="pill ${priority === 'critical' || priority === 'high' ? 'fail' : priority === 'medium' ? 'warning' : 'pending'}">${issuePriorityLabel(priority)}</span>`; }
 function issueSystemName(id) { return systemById(id)?.name || id; }
 
@@ -1960,9 +2005,20 @@ function renderIssues(scope='mine') {
           <div class="meta-box"><span>Test case</span><strong>${escapeHtml(i.testName)}</strong></div>
           <div class="meta-box"><span>Priority</span><strong>${issuePriorityLabel(i.priority)}</strong></div>
         </div>
-        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px;flex-wrap:wrap;">
-          ${scope === 'admin' ? `<button class="btn btn-secondary btn-small" onclick="event.stopPropagation();cycleIssueStatus('${i.id}')">Change status</button>` : ''}
-          <button class="btn btn-secondary btn-small" onclick="event.stopPropagation();downloadIssueCSV('${i.id}')">Export issue CSV</button>
+        <div class="issue-management" onclick="event.stopPropagation()">
+          ${scope === 'admin' ? `<div class="issue-status-actions">
+            ${['open','under-investigation','re-test','closed'].map(st=>`<button class="btn btn-small ${i.status===st?'btn-primary active-status':'btn-secondary'}" onclick="setIssueStatus('${i.id}','${st}')">${issueStatusLabel(st)}</button>`).join('')}
+          </div>` : ''}
+          <div class="issue-comments">
+            <strong style="font-size:12px;">Comments</strong>
+            <div id="issue-comments-${i.dbId}">${renderIssueComments(i)}</div>
+            <div class="issue-comment-compose"><textarea id="issue-comment-input-${i.dbId}" placeholder="Add a comment..."></textarea><button class="btn btn-primary btn-small" onclick="addIssueComment('${i.id}')">Add comment</button></div>
+          </div>
+          <div class="issue-history"><strong style="font-size:12px;">History</strong><div>${renderIssueHistory(i)}</div></div>
+          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px;flex-wrap:wrap;">
+            <button class="btn btn-secondary btn-small" onclick="downloadIssueCSV('${i.id}')">Export issue CSV</button>
+            ${scope === 'admin' ? `<button class="btn btn-danger btn-small" onclick="requestDeleteIssue('${i.id}')">Delete issue</button>` : ''}
+          </div>
         </div>
       </div>
     </div>
@@ -2907,6 +2963,25 @@ document.querySelectorAll('.nav-btn').forEach(btn => {
 });
 
 
+let adminConfirmAction = null;
+function openAdminConfirm(title, copy, action, label='Delete') {
+  document.getElementById('admin-confirm-title').textContent=title;
+  document.getElementById('admin-confirm-copy').textContent=copy;
+  document.getElementById('admin-confirm-action').textContent=label;
+  adminConfirmAction=action; document.getElementById('admin-confirm-modal').classList.add('open');
+}
+function closeAdminConfirm(){ document.getElementById('admin-confirm-modal')?.classList.remove('open'); adminConfirmAction=null; }
+function confirmAdminAction(){ const fn=adminConfirmAction; closeAdminConfirm(); if(typeof fn==='function') fn(); }
+
+function renderIssueComments(i){
+  const rows=i.comments||[]; if(!rows.length)return '<div style="font-size:11px;color:var(--grey-70);margin-top:8px;">No comments yet.</div>';
+  return rows.map(c=>`<div class="issue-comment"><div class="issue-comment-head"><strong>${escapeHtml(c.authorName||'Staff user')}</strong><span>${escapeHtml(displayDate(c.createdAt))}</span></div><div class="issue-comment-body">${escapeHtml(c.comment)}</div></div>`).join('');
+}
+function renderIssueHistory(i){
+  const rows=i.history||[]; if(!rows.length)return '<div style="font-size:11px;color:var(--grey-70);margin-top:8px;">No status changes yet.</div>';
+  return rows.map(h=>`<div class="issue-history-row"><div class="issue-history-time">${escapeHtml(displayDate(h.createdAt))}</div><div><strong>${escapeHtml(h.actorName||'Staff user')}</strong> changed status from <strong>${escapeHtml(h.oldStatus||'—')}</strong> to <strong>${escapeHtml(h.newStatus)}</strong></div></div>`).join('');
+}
+
 /* ===== AOT Supabase live data layer ===== */
 const SYSTEM_KEY_BY_NAME = {
   'Vedaleon vCheck':'vcheck',
@@ -2964,9 +3039,9 @@ async function loadAotSessions() {
 
 async function loadAotIssues() {
   if (!authClient || !currentSession?.user) { issues=[]; return; }
-  const {data,error}=await authClient.from('aot_issues').select('id,issue_number,raised_by_user_id,raised_by_name,system_id,airport,device_name,test_case_name,urgency,status,description,created_at').order('created_at',{ascending:false});
+  const {data,error}=await authClient.from('aot_issues').select('id,issue_number,raised_by_user_id,raised_by_name,system_id,airport,device_name,test_case_name,urgency,status,description,created_at,aot_issue_comments(id,comment,author_user_id,author_name,created_at),aot_issue_status_history(id,old_status,new_status,changed_by_user_id,changed_by_name,created_at)').order('created_at',{ascending:false});
   if(error) throw error;
-  issues=(data||[]).map(i=>({id:'I-'+i.issue_number,dbId:i.id,creatorId:i.raised_by_user_id,creatorName:i.raised_by_name||'Staff user',system:aotSystemKeyByUuid[i.system_id]||i.system_id,airport:i.airport||'',device:i.device_name||'',testName:i.test_case_name||'Testing failure',priority:String(i.urgency||'Medium').toLowerCase(),status:i.status==='Investigating'?'in-progress':String(i.status||'Open').toLowerCase(),created:displayDate(i.created_at),description:i.description||''}));
+  issues=(data||[]).map(i=>({id:'I-'+i.issue_number,dbId:i.id,creatorId:i.raised_by_user_id,creatorName:i.raised_by_name||'Staff user',system:aotSystemKeyByUuid[i.system_id]||i.system_id,airport:i.airport||'',device:i.device_name||'',testName:i.test_case_name||'Testing failure',priority:String(i.urgency||'Medium').toLowerCase(),status:String(i.status||'Open').toLowerCase().replaceAll(' ','-'),created:displayDate(i.created_at),description:i.description||'',comments:(i.aot_issue_comments||[]).sort((a,b)=>new Date(a.created_at)-new Date(b.created_at)).map(c=>({comment:c.comment,authorName:c.author_name,createdAt:c.created_at})),history:(i.aot_issue_status_history||[]).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).map(h=>({oldStatus:h.old_status,newStatus:h.new_status,actorName:h.changed_by_name,createdAt:h.created_at}))}));
   renderIssues('mine'); if(currentUserRole==='admin') renderIssues('admin');
 }
 
@@ -3055,11 +3130,22 @@ async function createIssueFromModal(){
   }catch(error){alert('Could not raise issue: '+(error.message||error));}
 }
 
-async function cycleIssueStatus(id){
+async function setIssueStatus(id,statusKey){
   if(currentUserRole!=='admin')return; const i=issues.find(x=>x.id===id); if(!i)return;
-  const next=i.status==='open'?'Investigating':i.status==='in-progress'?'Resolved':'Open';
-  const {error}=await authClient.from('aot_issues').update({status:next}).eq('id',i.dbId); if(error){alert(error.message);return;} await loadAotIssues();
+  const dbStatus={'open':'Open','under-investigation':'Under Investigation','re-test':'Re-Test','closed':'Closed'}[statusKey]; if(!dbStatus)return;
+  if(i.status===statusKey)return;
+  try{ const {error}=await authClient.from('aot_issues').update({status:dbStatus}).eq('id',i.dbId); if(error)throw error; await loadAotIssues(); }catch(error){alert('Could not update issue status: '+error.message);}
 }
+async function addIssueComment(id){
+  const i=issues.find(x=>x.id===id); if(!i||!currentUser?.id)return; const input=document.getElementById('issue-comment-input-'+i.dbId); const comment=input?.value.trim(); if(!comment)return;
+  try{ const {error}=await authClient.from('aot_issue_comments').insert({issue_id:i.dbId,author_user_id:currentUser.id,author_name:currentUser.name||formatUserName(currentUser.email),comment}); if(error)throw error; if(input)input.value=''; await loadAotIssues(); }catch(error){alert('Could not add comment: '+error.message);}
+}
+function requestDeleteIssue(id){
+  if(currentUserRole!=='admin')return; const i=issues.find(x=>x.id===id); if(!i)return; openAdminConfirm('Delete issue?',`${i.id} and its comments/status history will be permanently deleted. This cannot be undone.`,()=>deleteIssueRecord(id),'Delete issue');
+}
+async function deleteIssueRecord(id){ const i=issues.find(x=>x.id===id); if(!i)return; const {error}=await authClient.from('aot_issues').delete().eq('id',i.dbId); if(error){alert('Could not delete issue: '+error.message);return;} await loadAotIssues(); }
+function requestDeleteSession(id){ if(currentUserRole!=='admin')return; openAdminConfirm('Delete test data?','This testing session, its devices and all recorded test results will be permanently deleted. This cannot be undone.',()=>deleteSessionRecord(id),'Delete test data'); }
+async function deleteSessionRecord(id){ const {error}=await authClient.from('aot_test_sessions').delete().eq('id',id); if(error){alert('Could not delete test data: '+error.message);return;} await loadAotSessions(); }
 
 function syncIssueFailedTest(){ const modal=document.getElementById('issue-modal');const select=document.getElementById('issue-failed-test-select');if(!modal||!select)return;const testId=select.value;modal.dataset.testId=testId;const test=tests.find(t=>String(t.id)===String(testId));if(test){document.getElementById('issue-test-name').textContent=test.name;document.getElementById('issue-description').value=test.desc;} }
 function openIssueModalForMatrix(deviceIndex,testId){ const test=tests.find(t=>String(t.id)===String(testId));if(!test)return;const device=testingDevices[deviceIndex]?.id||'Device 01';const modal=document.getElementById('issue-modal');document.getElementById('issue-modal-title').textContent='Raise an issue';document.getElementById('issue-test-name').textContent=test.name;document.getElementById('issue-system').textContent=resultSystemName(selectedTestingSystem);document.getElementById('issue-airport').textContent=testingAirportCode();document.getElementById('issue-device').textContent=device;document.getElementById('issue-description').value=test.desc;document.getElementById('issue-priority').value='high';document.getElementById('issue-failed-test-wrap')?.classList.add('hidden');modal.dataset.testId=testId;modal.dataset.deviceIndex=deviceIndex;modal.classList.add('open'); }
