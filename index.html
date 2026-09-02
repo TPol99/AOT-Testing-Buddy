@@ -2622,8 +2622,26 @@ const SUPABASE_URL = 'https://nxyutzeplurgirgdivtd.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_gSJWywfwqb0ucXeqNcgu7g_kFJKTAF8';
 let authClient = null;
 
+const REMEMBER_ME_KEY = 'aotRememberMe';
+
+function getRememberMePreference() {
+  try { return localStorage.getItem(REMEMBER_ME_KEY) === 'true'; }
+  catch (_) { return false; }
+}
+
+function setRememberMePreference(enabled) {
+  try { localStorage.setItem(REMEMBER_ME_KEY, enabled ? 'true' : 'false'); }
+  catch (_) {}
+}
+
+function restoreRememberMePreference() {
+  const checkbox = document.getElementById('remember-me');
+  if (checkbox) checkbox.checked = getRememberMePreference();
+}
+
 function rememberMeEnabled() {
-  return document.getElementById('remember-me')?.checked === true;
+  const checkbox = document.getElementById('remember-me');
+  return checkbox ? checkbox.checked === true : getRememberMePreference();
 }
 
 function authStorage() {
@@ -2748,6 +2766,7 @@ async function submitAuth(event) {
   showAuthMessage(mode === 'signin' ? 'Signing in…' : 'Creating your account…', 'success');
 
   if (mode === 'signin') {
+    setRememberMePreference(rememberMeEnabled());
     const { data, error } = await authClient.auth.signInWithPassword({ email, password });
     if (error) { showAuthMessage(error.message); return; }
     currentSession = data.session;
@@ -3049,6 +3068,7 @@ async function afterAotAuthReady(){ if(currentSession?.user) await refreshAotDat
 
 selectedTestingSystem = 'tagger';
 initTheme();
+restoreRememberMePreference();
 populateResultFilters();
 renderHome();
 renderSystemChoices();
