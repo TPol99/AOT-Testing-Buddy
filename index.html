@@ -1113,11 +1113,17 @@
           <div class="field">
             <label>Port <b>*</b></label>
             <select id="testing-airport" onchange="syncTestingContext()">
-              <option>BNE - Brisbane</option>
-              <option>SYD - Sydney</option>
+              <option>LST - Launceston</option>
               <option>MEL - Melbourne</option>
-              <option>PER - Perth</option>
+              <option>SYD - Sydney</option>
+              <option selected>BNE - Brisbane</option>
+              <option>MCY - Sunshine Coast</option>
               <option>MKY - Mackay</option>
+              <option>ADL - Adelaide</option>
+              <option>PER - Perth</option>
+              <option>DRW - Darwin</option>
+              <option>ZQN - Queenstown</option>
+              <option>NAN - Nadi</option>
             </select>
           </div>
           <div class="field">
@@ -1167,7 +1173,7 @@
         <div class="analytics-head">
           <div><h2>Testing Analytics</h2><p>Performance across saved testing runs.</p></div>
           <div class="analytics-filters">
-            <select id="analytics-airport" onchange="renderTestingAnalytics()"><option>All ports</option><option>BNE</option><option>SYD</option><option>MEL</option><option>PER</option><option>MKY</option></select>
+            <select id="analytics-airport" onchange="renderTestingAnalytics()"><option>All ports</option><option>LST</option><option>MEL</option><option>SYD</option><option>BNE</option><option>MCY</option><option>MKY</option><option>ADL</option><option>PER</option><option>DRW</option><option>ZQN</option><option>NAN</option></select>
             <select id="analytics-system" onchange="renderTestingAnalytics()"><option>All systems</option></select>
           </div>
         </div>
@@ -1229,7 +1235,7 @@
       <div class="card results-filters">
         <div class="field"><label>System</label><select id="results-system-filter" onchange="renderResults('mine')"><option value="all">All systems</option></select></div>
         <div class="field"><label>Result</label><select id="results-status-filter" onchange="renderResults('mine')"><option value="all">All results</option><option value="passed">Passed</option><option value="failed">Failed</option><option value="incomplete">Incomplete</option></select></div>
-        <div class="field"><label>Airport</label><select id="results-airport-filter" onchange="renderResults('mine')"><option value="all">All airports</option><option>BNE</option><option>SYD</option><option>MEL</option><option>PER</option></select></div>
+        <div class="field"><label>Airport</label><select id="results-airport-filter" onchange="renderResults('mine')"><option value="all">All airports</option><option>LST</option><option>MEL</option><option>SYD</option><option>BNE</option><option>MCY</option><option>MKY</option><option>ADL</option><option>PER</option><option>DRW</option><option>ZQN</option><option>NAN</option></select></div>
         <div style="display:flex;align-items:end"><button class="btn btn-secondary" onclick="clearResultFilters('mine')">Clear</button></div>
       </div>
       <div id="my-results-list"></div>
@@ -1251,7 +1257,7 @@
       <div class="card results-filters">
         <div class="field"><label>Status</label><select id="issues-status-filter" onchange="renderIssues('mine')"><option value="all">All statuses</option><option value="open">Open</option><option value="under-investigation">Under Investigation</option><option value="re-test">Re-Test</option><option value="closed">Closed</option></select></div>
         <div class="field"><label>Priority</label><select id="issues-priority-filter" onchange="renderIssues('mine')"><option value="all">All priorities</option><option value="critical">Critical</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></div>
-        <div class="field"><label>Airport</label><select id="issues-airport-filter" onchange="renderIssues('mine')"><option value="all">All airports</option><option>BNE</option><option>SYD</option><option>MEL</option><option>PER</option></select></div>
+        <div class="field"><label>Airport</label><select id="issues-airport-filter" onchange="renderIssues('mine')"><option value="all">All airports</option><option>LST</option><option>MEL</option><option>SYD</option><option>BNE</option><option>MCY</option><option>MKY</option><option>ADL</option><option>PER</option><option>DRW</option><option>ZQN</option><option>NAN</option></select></div>
         <div style="display:flex;align-items:end"><button class="btn btn-secondary" onclick="clearIssueFilters('mine')">Clear</button></div>
       </div>
       <div id="my-issues-list"></div>
