@@ -2785,6 +2785,62 @@ function createAuthClient() {
   });
 }
 
+/* ===== Safari/iOS connectivity handling =====
+   Do not use navigator.onLine as a hard gate for Supabase requests. Safari can
+   report a stale offline state while the network is actually usable. We use
+   a lightweight reachability probe for status/recovery, but actual Supabase
+   operations are always allowed to run and decide their own success/failure. */
+let supabaseReachable = true;
+let connectivityCheckInFlight = null;
+
+function isNetworkError(error) {
+  const msg = String(error?.message || error || '').toLowerCase();
+  return error instanceof TypeError ||
+    msg.includes('failed to fetch') ||
+    msg.includes('networkerror') ||
+    msg.includes('network request failed') ||
+    msg.includes('load failed') ||
+    msg.includes('connection') && msg.includes('failed');
+}
+
+async function checkSupabaseReachability() {
+  if (connectivityCheckInFlight) return connectivityCheckInFlight;
+  connectivityCheckInFlight = (async () => {
+    try {
+      const response = await fetch(`${SUPABASE_URL}/auth/v1/settings`, {
+        method: 'GET',
+        cache: 'no-store',
+        headers: { 'apikey': SUPABASE_PUBLISHABLE_KEY }
+      });
+      supabaseReachable = response.ok;
+      return supabaseReachable;
+    } catch (_) {
+      supabaseReachable = false;
+      return false;
+    } finally {
+      connectivityCheckInFlight = null;
+    }
+  })();
+  return connectivityCheckInFlight;
+}
+
+function scheduleConnectivityRefresh() {
+  window.clearTimeout(window.__aotConnectivityTimer);
+  window.__aotConnectivityTimer = window.setTimeout(async () => {
+    const reachable = await checkSupabaseReachability();
+    if (reachable && currentSession?.user) {
+      try { await refreshAotData(); } catch (_) {}
+    }
+  }, 150);
+}
+
+window.addEventListener('online', scheduleConnectivityRefresh);
+window.addEventListener('focus', scheduleConnectivityRefresh);
+window.addEventListener('pageshow', scheduleConnectivityRefresh);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') scheduleConnectivityRefresh();
+});
+
 function formatUserName(email) {
   const local = String(email || '').split('@')[0];
   const parts = local.split('.').filter(Boolean);
@@ -3101,8 +3157,20 @@ async function loadAotIssues() {
 
 async function refreshAotData(){
   if(!currentSession?.user) return;
-  try { await loadAotSystemsAndTests(); await Promise.all([loadAotSessions(),loadAotIssues()]); }
-  catch(error){ console.error('AOT data load failed:',error); alert('Could not load AOT data from Supabase: '+(error.message||error)); }
+  try {
+    await loadAotSystemsAndTests();
+    await Promise.all([loadAotSessions(),loadAotIssues()]);
+    supabaseReachable = true;
+  } catch(error){
+    console.error('AOT data load failed:', error);
+    if (isNetworkError(error)) {
+      supabaseReachable = false;
+      // Do not treat a transient Safari network state as a user-facing hard block.
+      // Keep existing in-memory data and retry when Safari resumes/focuses/recovers.
+      return;
+    }
+    alert('Could not load AOT data from Supabase: ' + (error.message || error));
+  }
 }
 
 async function saveModal() {
@@ -3117,7 +3185,7 @@ async function saveModal() {
     const links=assigned.map(k=>({test_case_id:data.id,system_id:aotSystemUuidByKey[k]})).filter(x=>x.system_id);
     if(links.length){const {error:e}=await authClient.from('aot_test_case_systems').insert(links);if(e)throw e;}
     hideModal(); await loadAotSystemsAndTests();
-  }catch(error){alert('Could not create test case: '+(error.message||error));}
+  }catch(error){alert(isNetworkError(error)?'Supabase could not be reached. Your test case was not saved. Please check your connection and try again.':'Could not create test case: '+(error.message||error));}
 }
 
 async function saveInlineEdit(id) {
@@ -3129,10 +3197,10 @@ async function saveInlineEdit(id) {
     const links=assigned.map(k=>({test_case_id:id,system_id:aotSystemUuidByKey[k]})).filter(x=>x.system_id);
     if(links.length){({error}=await authClient.from('aot_test_case_systems').insert(links));if(error)throw error;}
     inlineEditingId=null; await loadAotSystemsAndTests();
-  }catch(error){alert('Could not save test case: '+(error.message||error));}
+  }catch(error){alert(isNetworkError(error)?'Supabase could not be reached. Your changes were not saved. Please check your connection and try again.':'Could not save test case: '+(error.message||error));}
 }
 
-async function toggleActive(id){ const t=tests.find(x=>x.id===id); if(!t)return; const {error}=await authClient.from('aot_test_cases').update({is_active:!t.active}).eq('id',id); if(error){alert(error.message);return;} await loadAotSystemsAndTests(); }
+async function toggleActive(id){ const t=tests.find(x=>x.id===id); if(!t)return; const {error}=await authClient.from('aot_test_cases').update({is_active:!t.active}).eq('id',id); if(error){alert(isNetworkError(error)?'Supabase could not be reached. Please check your connection and try again.':error.message);return;} await loadAotSystemsAndTests(); }
 
 async function cloneTest(id){
   const source=tests.find(x=>x.id===id); if(!source)return;
@@ -3148,7 +3216,7 @@ async function deleteTest(id){
   if(currentUserRole!=='admin'){alert('Only Admins can delete test cases.');return;}
   const t=tests.find(x=>x.id===id); if(!t)return;
   if(!confirm(`Delete "${t.name}" permanently?`))return;
-  const {error}=await authClient.from('aot_test_cases').delete().eq('id',id); if(error){alert('Could not delete test case: '+error.message);return;} await loadAotSystemsAndTests();
+  const {error}=await authClient.from('aot_test_cases').delete().eq('id',id); if(error){alert(isNetworkError(error)?'Supabase could not be reached. Please check your connection and try again.':'Could not delete test case: '+error.message);return;} await loadAotSystemsAndTests();
 }
 
 function attachAdminDragHandlers(){
@@ -3198,14 +3266,14 @@ async function setIssueStatus(id,statusKey){
 }
 async function addIssueComment(id){
   const i=issues.find(x=>x.id===id); if(!i||!currentUser?.id)return; const input=document.getElementById('issue-comment-input-'+i.dbId); const comment=input?.value.trim(); if(!comment)return;
-  try{ const {error}=await authClient.from('aot_issue_comments').insert({issue_id:i.dbId,author_user_id:currentUser.id,author_name:currentUser.name||formatUserName(currentUser.email),comment}); if(error)throw error; if(input)input.value=''; await loadAotIssues(); }catch(error){alert('Could not add comment: '+error.message);}
+  try{ const {error}=await authClient.from('aot_issue_comments').insert({issue_id:i.dbId,author_user_id:currentUser.id,author_name:currentUser.name||formatUserName(currentUser.email),comment}); if(error)throw error; if(input)input.value=''; await loadAotIssues(); }catch(error){alert(isNetworkError(error)?'Supabase could not be reached. Your comment was not saved. Please try again.':'Could not add comment: '+error.message);}
 }
 function requestDeleteIssue(id){
   if(currentUserRole!=='admin')return; const i=issues.find(x=>x.id===id); if(!i)return; openAdminConfirm('Delete issue?',`${i.id} and its comments/status history will be permanently deleted. This cannot be undone.`,()=>deleteIssueRecord(id),'Delete issue');
 }
-async function deleteIssueRecord(id){ const i=issues.find(x=>x.id===id); if(!i)return; const {error}=await authClient.from('aot_issues').delete().eq('id',i.dbId); if(error){alert('Could not delete issue: '+error.message);return;} await loadAotIssues(); }
+async function deleteIssueRecord(id){ const i=issues.find(x=>x.id===id); if(!i)return; const {error}=await authClient.from('aot_issues').delete().eq('id',i.dbId); if(error){alert(isNetworkError(error)?'Supabase could not be reached. Please check your connection and try again.':'Could not delete issue: '+error.message);return;} await loadAotIssues(); }
 function requestDeleteSession(id){ if(currentUserRole!=='admin')return; openAdminConfirm('Delete test data?','This testing session, its devices and all recorded test results will be permanently deleted. This cannot be undone.',()=>deleteSessionRecord(id),'Delete test data'); }
-async function deleteSessionRecord(id){ const {error}=await authClient.from('aot_test_sessions').delete().eq('id',id); if(error){alert('Could not delete test data: '+error.message);return;} await loadAotSessions(); }
+async function deleteSessionRecord(id){ const {error}=await authClient.from('aot_test_sessions').delete().eq('id',id); if(error){alert(isNetworkError(error)?'Supabase could not be reached. Please check your connection and try again.':'Could not delete test data: '+error.message);return;} await loadAotSessions(); }
 
 function syncIssueFailedTest(){ const modal=document.getElementById('issue-modal');const select=document.getElementById('issue-failed-test-select');if(!modal||!select)return;const testId=select.value;modal.dataset.testId=testId;const test=tests.find(t=>String(t.id)===String(testId));if(test){document.getElementById('issue-test-name').textContent=test.name;document.getElementById('issue-description').value=test.desc;} }
 function openIssueModalForMatrix(deviceIndex,testId){ const test=tests.find(t=>String(t.id)===String(testId));if(!test)return;const device=testingDevices[deviceIndex]?.id||'Device 01';const modal=document.getElementById('issue-modal');document.getElementById('issue-modal-title').textContent='Raise an issue';document.getElementById('issue-test-name').textContent=test.name;document.getElementById('issue-system').textContent=resultSystemName(selectedTestingSystem);document.getElementById('issue-airport').textContent=testingAirportCode();document.getElementById('issue-device').textContent=device;document.getElementById('issue-description').value=test.desc;document.getElementById('issue-priority').value='high';document.getElementById('issue-failed-test-wrap')?.classList.add('hidden');modal.dataset.testId=testId;modal.dataset.deviceIndex=deviceIndex;modal.classList.add('open'); }
