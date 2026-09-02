@@ -1284,6 +1284,7 @@ let draggedId = null;
 let editingId = null;
 let inlineEditingId = null;
 let currentSession = null;
+let currentTestingSession = null;
 let currentUser = null;
 let currentUserRole = null;
 
@@ -1619,7 +1620,7 @@ function csvEscape(value) {
 }
 
 function exportCurrentSessionCSV() {
-  const systemId = currentSession?.system || document.getElementById('system-select')?.value;
+  const systemId = currentTestingSession?.system || document.getElementById('system-select')?.value;
   if (!systemId) {
     alert('Start a testing session before exporting a CSV.');
     return;
@@ -1627,7 +1628,7 @@ function exportCurrentSessionCSV() {
 
   const system = systemById(systemId);
   const active = tests.filter(t => getAssignedSystems(t).includes(systemId) && t.active);
-  const session = currentSession || {
+  const session = currentTestingSession || {
     id: 'CURRENT',
     creatorName: currentUser.name,
     airport: document.querySelector('.toolbar select:nth-of-type(2)')?.value?.slice(0,3) || 'BNE',
@@ -1663,15 +1664,15 @@ function exportCurrentSessionCSV() {
 }
 
 function completeSession() {
-  if (!currentSession) return;
-  const systemId = currentSession.system;
+  if (!currentTestingSession) return;
+  const systemId = currentTestingSession.system;
   const active = tests.filter(t => getAssignedSystems(t).includes(systemId) && t.active);
   const complete = active.every(t => testResults[t.id]);
   if (!complete) return;
-  currentSession.status = active.some(t => testResults[t.id] === 'fail') ? 'failed' : 'passed';
-  currentSession.results = active.map(t => [t.name, testResults[t.id]]);
-  sessions.unshift({...currentSession});
-  currentSession = null;
+  currentTestingSession.status = active.some(t => testResults[t.id] === 'fail') ? 'failed' : 'passed';
+  currentTestingSession.results = active.map(t => [t.name, testResults[t.id]]);
+  sessions.unshift({...currentTestingSession});
+  currentTestingSession = null;
   testResults = {};
   document.getElementById('result-summary').classList.remove('open');
   alert('Testing session saved to My Results.');
@@ -1680,7 +1681,7 @@ function completeSession() {
 
 function startSession() {
   testResults = {};
-  currentSession = {
+  currentTestingSession = {
     id: 'S-' + Math.floor(1000 + Math.random()*8999),
     creatorId: currentUser.id,
     creatorName: currentUser.name,
@@ -2168,9 +2169,9 @@ function toggleQuickTest() {
 }
 
 function syncTestingContext() {
-  if (currentSession) {
-    currentSession.airport = document.getElementById('testing-airport').value.slice(0,3);
-    currentSession.reference = document.getElementById('testing-reference').value.trim();
+  if (currentTestingSession) {
+    currentTestingSession.airport = document.getElementById('testing-airport').value.slice(0,3);
+    currentTestingSession.reference = document.getElementById('testing-reference').value.trim();
   }
   renderTesting();
 }
@@ -2190,7 +2191,7 @@ function selectTestingSystem(systemId) {
   selectedTestingSystem = systemId;
   const sel = document.getElementById('system-select');
   if (sel) sel.value = systemId;
-  if (currentSession) currentSession.system = systemId;
+  if (currentTestingSession) currentTestingSession.system = systemId;
   resetTestingRun(false);
   renderSystemChoices();
   renderTesting();
@@ -2309,7 +2310,7 @@ function resetTestingRun(changeSystem=true) {
   if (changeSystem && document.getElementById('system-select')) selectedTestingSystem = document.getElementById('system-select').value || selectedTestingSystem;
   testingDevices = [{id:'Device 01', results:{}}];
   testResults = {};
-  currentSession = null;
+  currentTestingSession = null;
   const summary = document.getElementById('result-summary');
   if (summary) summary.classList.remove('open');
   renderTesting();
@@ -2317,7 +2318,7 @@ function resetTestingRun(changeSystem=true) {
 
 function startSession() {
   const ref = document.getElementById('testing-reference')?.value?.trim() || '';
-  currentSession = {
+  currentTestingSession = {
     id:'S-' + Math.floor(1000 + Math.random()*8999),
     creatorId:currentUser.id, creatorName:currentUser.name,
     system:selectedTestingSystem, airport:testingAirportCode(),
@@ -2327,11 +2328,11 @@ function startSession() {
 }
 
 function updateTestingSessionContext() {
-  if (!currentSession) return;
-  currentSession.system = selectedTestingSystem;
-  currentSession.airport = testingAirportCode();
-  currentSession.device = testingDevices[0]?.id || 'Device 01';
-  currentSession.reference = document.getElementById('testing-reference')?.value?.trim() || '';
+  if (!currentTestingSession) return;
+  currentTestingSession.system = selectedTestingSystem;
+  currentTestingSession.airport = testingAirportCode();
+  currentTestingSession.device = testingDevices[0]?.id || 'Device 01';
+  currentTestingSession.reference = document.getElementById('testing-reference')?.value?.trim() || '';
 }
 
 function computeTestingStats() {
@@ -2437,7 +2438,7 @@ function exportCurrentSessionCSV() {
   updateTestingSessionContext();
   const stats = computeTestingStats();
   if (!stats.total) { alert('There are no active test cases to export for this system.'); return; }
-  const session = currentSession || {
+  const session = currentTestingSession || {
     id:'CURRENT', creatorName:currentUser.name, system:selectedTestingSystem, airport:testingAirportCode(), reference:document.getElementById('testing-reference')?.value?.trim()||'', device:testingDevices[0]?.id||'Device 01'
   };
   const flat = [];
@@ -2451,22 +2452,22 @@ function exportCurrentSessionCSV() {
 function saveTestingRun() {
   const stats = computeTestingStats();
   updateTestingSessionContext();
-  if (!currentSession) startSession();
-  currentSession.system = selectedTestingSystem;
-  currentSession.airport = testingAirportCode();
-  currentSession.reference = document.getElementById('testing-reference')?.value?.trim()||'';
-  currentSession.device = testingDevices[0]?.id || 'Device 01';
-  currentSession.status = stats.failed ? 'failed' : (stats.completed === stats.total ? 'passed' : 'incomplete');
-  currentSession.results = [];
-  currentSession.deviceRows = testingDevices.map(d => ({
+  if (!currentTestingSession) startSession();
+  currentTestingSession.system = selectedTestingSystem;
+  currentTestingSession.airport = testingAirportCode();
+  currentTestingSession.reference = document.getElementById('testing-reference')?.value?.trim()||'';
+  currentTestingSession.device = testingDevices[0]?.id || 'Device 01';
+  currentTestingSession.status = stats.failed ? 'failed' : (stats.completed === stats.total ? 'passed' : 'incomplete');
+  currentTestingSession.results = [];
+  currentTestingSession.deviceRows = testingDevices.map(d => ({
     device: d.id,
     results: stats.active.map(t => [t.name, d.results[t.id] || 'pending'])
   }));
-  currentSession.deviceRows.forEach(row => row.results.forEach(result => currentSession.results.push(result)));
-  currentSession.deviceCount = testingDevices.length;
-  sessions = [ {...currentSession}, ...sessions.filter(s=>s.id!==currentSession.id) ];
+  currentTestingSession.deviceRows.forEach(row => row.results.forEach(result => currentTestingSession.results.push(result)));
+  currentTestingSession.deviceCount = testingDevices.length;
+  sessions = [ {...currentTestingSession}, ...sessions.filter(s=>s.id!==currentTestingSession.id) ];
   renderTestingAnalytics(); renderTestingHistory(); renderResults('mine');
-  alert(`Testing run ${currentSession.id} saved.`);
+  alert(`Testing run ${currentTestingSession.id} saved.`);
 }
 
 function renderTestingHistory() {
@@ -2903,7 +2904,7 @@ async function saveTestingRun(){
     const byOrder=new Map((dbDevices||[]).map(d=>[d.device_order,d.id]));
     const resultPayload=[]; testingDevices.forEach((d,i)=>stats.active.forEach(t=>resultPayload.push({session_id:session.id,device_id:byOrder.get(i+1),test_case_id:t.id,result:uiResultToDb(d.results[t.id])})));
     if(resultPayload.length){const {error:rErr}=await authClient.from('aot_test_results').insert(resultPayload);if(rErr)throw rErr;}
-    alert('Testing run saved successfully.'); currentSession=null; await loadAotSessions();
+    alert('Testing run saved successfully.'); currentTestingSession=null; await loadAotSessions();
   }catch(error){console.error(error);alert('Could not save testing run: '+(error.message||error));}
 }
 
